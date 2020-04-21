@@ -102,18 +102,6 @@ user-response sub session-knowledge,
 # Elements to be inferred only (not inserted) during a user session
 # ============================================================
 
-#troubleshooting-action sub relation,
-#    abstract,
-#    relates parent-session;
-#
-#user-question sub troubleshooting-action,
-#    relates parent-session,
-#    relates response-option;
-#
-#solution-proposition sub troubleshooting-action,
-#    relates parent-session,
-#    relates proposed-solution;
-
 fault-relevancy sub relation,
     relates relevant-fault,
     relates parent-session;
@@ -130,8 +118,11 @@ diagnosis sub relation,
     relates diagnosed-fault,
     relates parent-session;
 
+
 # Rules to infer the above relations
 # ============================================================
+
+# A user is considered to own a product if it belongs to a user's account
 user-owned-product sub rule,
 when {
     $u isa user;
@@ -143,6 +134,8 @@ when {
     (owned-product: $p, product-owner: $u) isa product-ownership;
 };
 
+
+# Infers that if user's account only shows one product, then the user is asking about that product
 product-is-known-when-account-has-one-product sub rule,
 when {
     $ts isa troubleshooting-session;
@@ -157,6 +150,9 @@ when {
     (associated-product: $p1, parent-session: $ts) isa product-association;
 };
 
+
+# We want to create a relation between our session and the faults that could be involved. This means only the faults
+# for the product that is associated with the troubleshooting session
 fault-is-relevant-only-for-the-product-concerned sub rule,
 when {
     $ts isa troubleshooting-session;
@@ -168,6 +164,8 @@ when {
     (relevant-fault: $flt, parent-session: $ts) isa fault-relevancy;
 };
 
+
+# Determine the faults that are still possible. A possible fault has no user answers that contradict its identification
 determine-candidate-fault sub rule,
 when {
     (relevant-fault: $flt, parent-session: $ts) isa fault-relevancy;
@@ -181,6 +179,8 @@ when {
     (diagnosed-fault: $flt, parent-session: $ts) isa candidate-diagnosis;
 };
 
+
+# If a session doesn't have a user-response to a question, then the question is unanswered
 no-response-means-unasked-question sub rule,
 when {
     $ques isa question;
@@ -193,7 +193,9 @@ when {
     (question-not-asked: $ques, parent-session: $ts) isa unasked-question;
 };
 
-# When all the questions have been answered positively
+
+# When all the questions pertinent to a fault have been answered in support of the fault, then we deem that we have made
+# a diagnosis
 determined-fault sub rule,
 when {
     (relevant-fault: $flt, parent-session: $ts) isa fault-relevancy;
