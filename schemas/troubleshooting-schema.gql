@@ -1,0 +1,207 @@
+define
+
+# Instances of these types are background knowledge, pre-existing in the KB
+# ============================================================
+name sub attribute,
+    datatype string;
+
+identifier sub attribute,
+    datatype long;
+
+user sub entity,
+    key identifier,
+    plays account-member,
+    plays session-owner,
+    plays product-owner;
+
+account-membership sub relation,
+    relates account-member,
+    relates group-account;
+
+account sub entity,
+    plays group-account,
+    plays product-owner;
+
+product sub entity,
+    key name,
+    plays associated-product,
+    plays owned-product,
+    plays failing-element;
+
+product-ownership sub relation,
+    relates owned-product,
+    relates product-owner;
+
+response-option sub attribute,
+    plays response,
+    plays indicating-response,
+    datatype string;
+
+text sub attribute,
+    datatype string;
+
+question sub entity,
+    has name,
+    has text,
+    has response-option,
+    plays considered-question,
+    plays identifying-question,
+    plays question-not-asked;
+
+fault-identification sub relation,
+    relates identifying-question,
+    relates identified-fault,
+    relates indicating-response;
+
+failure-mode sub relation,
+    relates failing-element,
+    relates failure;
+
+fault sub entity,
+    key name,
+    plays failure,
+    plays identified-fault,
+    plays diagnosed-fault,
+    plays relevant-fault,
+    plays fault-solved;
+
+solution sub relation,
+    relates fault-solved,
+    relates solving-procedure;
+
+description sub attribute,
+    datatype string;
+
+procedure sub entity,
+    key description,
+    plays solving-procedure;
+
+# These instances are to be inserted or inferred during a user session
+# ============================================================
+session-ownership sub relation,
+    relates session-owner,
+    relates owned-session;
+
+troubleshooting-session sub entity,
+    key identifier,
+    plays owned-session,
+    plays parent-session;
+
+product-association sub session-knowledge,
+    relates parent-session,
+    relates associated-product;
+
+session-knowledge sub relation,
+    abstract;
+
+user-response sub session-knowledge,
+    relates considered-question,
+    relates response,
+    relates parent-session;
+
+# Elements to be inferred only (not inserted) during a user session
+# ============================================================
+
+#troubleshooting-action sub relation,
+#    abstract,
+#    relates parent-session;
+#
+#user-question sub troubleshooting-action,
+#    relates parent-session,
+#    relates response-option;
+#
+#solution-proposition sub troubleshooting-action,
+#    relates parent-session,
+#    relates proposed-solution;
+
+fault-relevancy sub relation,
+    relates relevant-fault,
+    relates parent-session;
+
+unasked-question sub relation,
+    relates question-not-asked,
+    relates parent-session;
+
+candidate-diagnosis sub relation,
+    relates diagnosed-fault,
+    relates parent-session;
+
+diagnosis sub relation,
+    relates diagnosed-fault,
+    relates parent-session;
+
+# Rules to infer the above relations
+# ============================================================
+user-owned-product sub rule,
+when {
+    $u isa user;
+    (account-member: $u, group-account: $acc) isa account-membership;
+    $acc isa account;
+    $p isa product;
+    (owned-product: $p, product-owner: $acc) isa product-ownership;
+}, then {
+    (owned-product: $p, product-owner: $u) isa product-ownership;
+};
+
+product-is-known-when-account-has-one-product sub rule,
+when {
+    $ts isa troubleshooting-session;
+    (session-owner: $u, owned-session: $ts) isa session-ownership;
+    (owned-product: $p1, product-owner: $u) isa product-ownership;
+    not {
+        $p2 isa product;
+        (owned-product: $p2, product-owner: $acc) isa product-ownership;
+        $p2 != $p1;
+    };
+}, then {
+    (associated-product: $p1, parent-session: $ts) isa product-association;
+};
+
+fault-is-relevant-only-for-the-product-concerned sub rule,
+when {
+    $ts isa troubleshooting-session;
+    (associated-product: $p, parent-session: $ts) isa product-association;
+    $p isa product;
+    $flt isa fault;
+    (failing-element: $p, failure: $flt) isa failure-mode;
+}, then {
+    (relevant-fault: $flt, parent-session: $ts) isa fault-relevancy;
+};
+
+determine-candidate-fault sub rule,
+when {
+    (relevant-fault: $flt, parent-session: $ts) isa fault-relevancy;
+    $ques isa question, has response-option $res1;
+    ($flt, $ques, $res1) isa fault-identification;
+    not {
+        $res1 != $res2;
+        (parent-session: $ts, response: $res2, considered-question: $ques) isa user-response;
+    };
+}, then {
+    (diagnosed-fault: $flt, parent-session: $ts) isa candidate-diagnosis;
+};
+
+no-response-means-unasked-question sub rule,
+when {
+    $ques isa question;
+    (relevant-fault: $flt, parent-session: $ts) isa fault-relevancy;
+    ($flt, $ques) isa fault-identification;
+    not {
+        (parent-session: $ts, considered-question: $ques) isa user-response;
+    };
+}, then {
+    (question-not-asked: $ques, parent-session: $ts) isa unasked-question;
+};
+
+# When all the questions have been answered positively
+determined-fault sub rule,
+when {
+    (relevant-fault: $flt, parent-session: $ts) isa fault-relevancy;
+    ($flt, $ts) isa candidate-diagnosis;
+    not {
+        ($flt, $ques) isa fault-identification;
+        (question-not-asked: $ques, parent-session: $ts) isa unasked-question;
+    };
+}, then {
+    (diagnosed-fault: $flt, parent-session: $ts) isa diagnosis;
+};

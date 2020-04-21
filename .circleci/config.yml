@@ -78,6 +78,15 @@ jobs:
       - run-grakn-server
       - run: bazel test //phone_calls/python:test --test_output=errors
 
+  test-troubleshooting:
+    machine: true
+    working_directory: ~/examples
+    steps:
+      - install-bazel-linux-rbe
+      - checkout
+      - run-grakn-server
+      - run: bazel test //troubleshooting/... --test_output=errors
+
   test-tube-network:
     machine: true
     working_directory: ~/examples
@@ -103,4 +112,5 @@ workflows:
       - test-phone-calls-java
       - test-phone-calls-nodejs
       - test-phone-calls-python
+      - test-troubleshooting
       - test-tube-network
