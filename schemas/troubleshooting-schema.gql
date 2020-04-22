@@ -73,7 +73,8 @@ description sub attribute,
     datatype string;
 
 procedure sub entity,
-    key description,
+    key name,
+    has description,
     plays solving-procedure;
 
 # These instances are to be inserted or inferred during a user session
