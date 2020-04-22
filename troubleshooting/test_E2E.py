@@ -2,15 +2,19 @@ import unittest
 
 from grakn.client import GraknClient
 from migration import migrate
-from troubleshooting import troubleshoot
+from app import Troubleshooter
 
 KEYSPACE = "troubleshooting"
 
 
 class TestE2E (unittest.TestCase):
     def test_app_runs_e2e(self):
-        migrate(KEYSPACE)
-        troubleshoot(KEYSPACE)
+        migrate(KEYSPACE, schema_path='../schemas/troubleshooting-schema.gql')
+        ts = Troubleshooter(0)
+        ts.troubleshoot()
+        ts.respond("Somewhat")
+        ts.respond("Faint and distorted")
+        ts.exit()
 
     def test_migration_spot_check(self):
         migrate(KEYSPACE)

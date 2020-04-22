@@ -15,9 +15,6 @@ FAULT_NAMES = {
 
 QUESTIONS = {
     # question name         question text                            question response options
-    "audio issue":          ("Are you experiencing a problem with "
-                             "audio?",                               ("Yes",)),  # Give alternatives in a full system
-
     "audible to others":    ("Can the participants hear you?",        ("Somewhat",
                                                                        "Not at all")),
 
@@ -25,13 +22,13 @@ QUESTIONS = {
                              "left of the app window say?",          ("'Mute'",
                                                                       "'Unmute'",
                                                                       "'Join Audio'",
-                                                                      "'Mute' with warning triangle",
-                                                                      "'Unmute' with warning triangle")),
+                                                                      "'Mute' with a warning triangle",
+                                                                      "'Unmute' with a warning triangle")),
 
-    "voice quality":        ("How do the participants describe that "
-                             "you sound?",                           ("Faint",
+    "voice quality":        ("How do other participants describe "
+                             "the problem with your sound?",         ("Faint",
                                                                       "Distorted",
-                                                                      "Both")),
+                                                                      "Faint and distorted")),
 }
 
 FAILURE_MODES = {
@@ -41,15 +38,6 @@ FAILURE_MODES = {
 }
 
 FAULT_IDENTIFICATIONS = {
-    # question name         fault name                      question responses
-    ("audio issue",         "did not join with audio",      ("Yes",)),
-    ("audio issue",         "muted by host",                ("Yes",)),
-    ("audio issue",         "muted in app",                 ("Yes",)),
-    ("audio issue",         "audio permissions not given",  ("Yes",)),
-    ("audio issue",         "low input volume",             ("Yes",)),
-    ("audio issue",         "wrong mic connected",          ("Yes",)),
-    ("audio issue",         "poor connection",              ("Yes",)),
-
     ("audible to others",   "did not join with audio",      ("Not at all",)),
     ("audible to others",   "muted by host",                ("Not at all",)),
     ("audible to others",   "muted in app",                 ("Not at all",)),
@@ -64,9 +52,9 @@ FAULT_IDENTIFICATIONS = {
     ("audio status",        "audio permissions not given",  ("'Mute' with warning triangle",
                                                              "'Unmute' with warning triangle")),
 
-    ("voice quality",       "low input volume",             ("Faint", "Both")),
-    ("voice quality",       "wrong mic connected",          ("Faint", "Both")),
-    ("voice quality",       "poor connection",              ("Distorted", "Both")),
+    ("voice quality",       "low input volume",             ("Faint", "Faint and distorted")),
+    ("voice quality",       "wrong mic connected",          ("Faint", "Faint and distorted")),
+    ("voice quality",       "poor connection",              ("Distorted", "Faint and distorted")),
 }
 
 PROCEDURES = {
@@ -105,17 +93,15 @@ SOLUTIONS = {
 }
 
 
-def migrate(keyspace_name: str):
+def migrate(keyspace_name="troubleshooting", schema_path='../schemas/troubleshooting-schema.gql'):
     """
     A migrator to import only a tiny hand-written dataset for demonstration purposes
-    :param keyspace_name:
-    :return:
     """
     with GraknClient(uri="localhost:48555") as client:
         with client.session(keyspace=keyspace_name) as session:
 
             # First, load the example's schema into grakn directly from the file
-            with open('schemas/troubleshooting-schema.gql', 'r') as schema:
+            with open(schema_path, 'r') as schema:
                 define_query = schema.read()
                 with session.transaction().write() as transaction:
                     transaction.query(define_query)
@@ -124,10 +110,25 @@ def migrate(keyspace_name: str):
 
             # Next, one-by-one load different parts of the data
             with session.transaction().write() as tx:
+                tx.query(f"""
+                insert 
+                
+                $u isa user, has identifier 0;
+                $acc isa account;
+                (group-account: $acc, account-member: $u) isa account-membership;
+
+                $p isa product, has name "standard";
+                $p1 isa product, has name "premium";
+                
+                (owned-product: $p, product-owner: $acc) isa product-ownership; 
+                """)
+                tx.commit()
+
+            with session.transaction().write() as tx:
 
                 for fault_name in FAULT_NAMES:
                     query = fault_template(fault_name)
-                    print(query)
+                    # print(query)
                     tx.query(query)
 
                 tx.commit()
@@ -136,7 +137,7 @@ def migrate(keyspace_name: str):
                 for product_name, failure_fault_names in FAILURE_MODES.items():
                     for fault_name in failure_fault_names:
                         query = failure_mode_template(product_name, fault_name)
-                        print(query)
+                        # print(query)
                         tx.query(query)
                 tx.commit()
 
@@ -144,7 +145,7 @@ def migrate(keyspace_name: str):
 
                 for question_name, question_fields in QUESTIONS.items():
                     query = question_template(question_name, *question_fields)
-                    print(query)
+                    # print(query)
                     tx.query(query)
 
                 tx.commit()
@@ -152,25 +153,25 @@ def migrate(keyspace_name: str):
             with session.transaction().write() as tx:
                 for fault_identification in FAULT_IDENTIFICATIONS:
                     query = fault_identification_template(*fault_identification)
-                    print(query)
+                    # print(query)
                     tx.query(query)
                 tx.commit()
 
             with session.transaction().write() as tx:
                 for procedure_name, procedure_description in PROCEDURES.items():
                     query = procedure_template(procedure_name, procedure_description)
-                    print(query)
+                    # print(query)
                     tx.query(query)
                 tx.commit()
 
             with session.transaction().write() as tx:
                 for solution in SOLUTIONS:
                     query = solution_template(*solution)
-                    print(query)
+                    # print(query)
                     tx.query(query)
                 tx.commit()
 
-            print("Loaded the troubleshooting data")
+            print("Migrated the troubleshooting data")
 
 
 if __name__ == "__main__":
