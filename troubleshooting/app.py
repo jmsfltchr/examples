@@ -59,16 +59,30 @@ class Troubleshooter:
             answers = list(tx.query(f"""
             match
                 (diagnosed-fault: $flt, parent-session: $ts) isa diagnosis;
-                $ts isa troubleshooting-session, has identifier {self._session_id}; $flt has name $n;
-            get $n;
+                $ts isa troubleshooting-session, has identifier {self._session_id}; 
+                $flt has name $flt-name;
+                $s($flt, $proc) isa solution;
+                $proc isa procedure, has name $proc-name, has description $proc-desc;
+            get $flt-name, $proc-name, $proc-desc; group $flt-name;
             """))
 
             if len(answers) > 0:
-                # in this case there is a solution, then query for its solution (or part of the same query)
-                print(cleandoc(f"""
-                A fault has been determined:
-                  | {answers[0].get('n').value()}
-                """))
+                print("****************************************\n")
+                print("The following possible faults and their remedies have been determined:\n")
+                fault_names = set()
+                for answer in answers:
+
+                    fault_name = answer.owner().value()
+                    fault_names.add(fault_name)
+                    print(f"|  Fault       :  {fault_name}\n")
+                    procedure_answers = answer.answers()
+
+                    for i, procedure_answer in enumerate(procedure_answers):
+                        print(f"|  Solution {i+1}  :  {procedure_answer.get('proc-name').value()}")
+                        print(f"|  Description :  {procedure_answer.get('proc-desc').value()}\n")
+                        print(f"---   ---   ---   ---   ---   ---   ---")
+                    print("")
+                return fault_names
 
             else:
                 # Else, query to find the question to ask which will eliminate the most failure scenarios:
@@ -102,11 +116,9 @@ class Troubleshooter:
                 print(cleandoc(
                     f"""
                     Question:
-
                     - | {answers[0].get('text').value()}
 
                     Pick one answer:
-
                     """
                 ))
 
@@ -155,4 +167,4 @@ class Troubleshooter:
                     (parent-session: $ts, response: $opt, considered-question: $ques) isa user-response;
                 """)
                 tx.commit()
-            self.troubleshoot()
+            return self.troubleshoot()

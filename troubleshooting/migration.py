@@ -60,12 +60,12 @@ FAULT_IDENTIFICATIONS = {
 PROCEDURES = {
     # name                  description
     "Join with audio":      "Click the button in the bottom left that says 'Join Audio', and at the prompt "
-                            "select `Join With Computer Audio`.",
+                            "select 'Join With Computer Audio'.",
 
     "Unmute via host":      "If the host has disallowed participants to unmute themselves, then you need to ask the "
                             "host to unmute you via chat.",
 
-    "Unmute mic":           "Click the bottom left button that says `unmute`. It should then `mute` when fixed.",
+    "Unmute mic":           "Click the bottom left button that says 'unmute'. It should then 'mute' when fixed.",
 
     "Give mic permissions": "Click the button in the bottom left that says 'Join Audio' and there will be a prompt. "
                             "Select 'Go To Settings' then enable access to the microphone for the App.",
